@@ -24,8 +24,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-COMFY_SERVER = "http://127.0.0.1:8188"
-COMFY_WS = "ws://127.0.0.1:8188/ws"
+COMFY_SERVER = "http://192.168.1.133:8188"
+COMFY_WS = "ws://192.168.1.133:8188/ws"
 
 class ConnectionManager:
     def __init__(self):
@@ -77,25 +77,28 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-class PromptRequest(BaseModel):
+class PromptRequest(BaseModel):              
     # prompt: Dict[str, Any]
     prompt_text: str  # 텍스트 프롬프트
-    workflow_name: str = "default" 
+    workflow_name: str = "0404test" 
     client_id: Optional[str] = None
     seed: Optional[int] = None  # 옵션: 시드값
 
 
-workflow_dir = "workflowJSON"
+workflow_dir = "workflow"
 os.makedirs(workflow_dir, exist_ok=True)
 
-
-def load_workflow(workflow_name="default"):
+# 워크플로우 호출
+def load_workflow(workflow_name="0404test"):
     workflow_path = os.path.join(workflow_dir, f"{workflow_name}.json")
+    print(f"워크플로우 로드 경로: {workflow_path}")
 
     try:
         if os.path.exists(workflow_path):
             with open(workflow_path, 'r', encoding="utf-8") as f:
-                return json.load(f)
+                workflow = json.load(f)
+                print(f"워크플로우 노드 목록: {list(workflow.keys())}")
+                return workflow
         else:
             raise HTTPException(status_code=404, detail=f"워크플로우 '{workflow_name}'를 찾을 수 없습니다.")
     except Exception as e:
@@ -128,15 +131,20 @@ def fetch_image(filename, subfolder, folder_type):
     try:
         data = {"filename": filename, "subfolder": subfolder, "type": folder_type}
         url_values = urllib.parse.urlencode(data)
-        with urllib.request.urlopen(f"{COMFY_SERVER}/view?{url_values}") as response:
+        url = f"{COMFY_SERVER}/view?{url_values}"
+        print(f"이미지 요청 URL: {url}")
+        with urllib.request.urlopen(url) as response:
             return response.read()
     except Exception as e:
+        print(f"이미지 가져오기 오류 상세: {str(e)}")
         raise HTTPException(status_code=500, detail=f"이미지 가져오기 오류: {str(e)}")
         
 # 히스토리 데이터 가져오기
 def fetch_history(prompt_id):
     try:
-        with urllib.request.urlopen(f"{COMFY_SERVER}/history/{prompt_id}") as response:
+        url = f"{COMFY_SERVER}/history/{prompt_id}"
+        print(f"히스토리 요청 URL: {url}")
+        with urllib.request.urlopen(url) as response:
             return json.loads(response.read())
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"히스토리 데이터 가져오기 오류: {str(e)}")
@@ -150,44 +158,112 @@ async def generate_image(request: PromptRequest):
         workflow = load_workflow(request.workflow_name)
         
         # 프롬프트 텍스트 적용
-        workflow["12"]["inputs"]["text"] = request.prompt_text
+        workflow["4"]["inputs"]["text"] = request.prompt_text
         
         # 시드 설정 (제공된 경우)
         if request.seed is not None:
-            workflow["37"]["inputs"]["noise_seed"] = request.seed
+            workflow["11"]["inputs"]["seed"] = request.seed
         else:
             # 랜덤 시드 생성
-            workflow["37"]["inputs"]["noise_seed"] = random.randint(1, 9999999999)
+            workflow["11"]["inputs"]["seed"] = random.randint(1, 9999999999)
         
         print(f"워크플로우 로드: {request.workflow_name}, 프롬프트: {request.prompt_text}")
         
+        # SaveImage 노드가 있는지 확인 (이미 워크플로우에 있으므로 추가 필요 없음)
+        print("SaveImage 노드 확인:", "12" in workflow)
+
         # ComfyUI에 요청 보내기
         client_id = request.client_id or f"api_{uuid.uuid4()}"
         result = queue_prompt(workflow, client_id)
         return result
     except Exception as e:
+        print(f"이미지 생성 오류 상세: {str(e)}")
         raise HTTPException(status_code=500, detail=f"이미지 생성 오류: {str(e)}")
 
-# 이미지 미리보기
+# 이미지 미리보기 - 중복 엔드포인트 제거하고 여러 폴더 타입 시도하는 로직으로 통합
 @app.get('/api/image')
 async def get_image_preview(filename: str, subfolder: str = "", folder_type: str = "output"):
     try:
-        print("이미지 요청:", filename, subfolder, folder_type)
-        image_data = fetch_image(filename, subfolder, folder_type)
-        return Response(content=image_data, media_type="image/png")
+        print(f"이미지 요청: filename={filename}, subfolder={subfolder}, folder_type={folder_type}")
+        
+        # 여러 폴더 타입 시도
+        folder_types_to_try = [folder_type]  # 우선 요청된 타입부터 시도
+        
+        # 요청된 타입이 output이나 temp가 아니면 둘 다 추가로 시도
+        if folder_type != "output":
+            folder_types_to_try.append("output")
+        if folder_type != "temp":
+            folder_types_to_try.append("temp")
+            
+        # 요청된 타입이 빈 문자열이면 기본값으로 output 사용
+        if folder_type == "":
+            folder_types_to_try = ["output", "temp"]
+        
+        for type_to_try in folder_types_to_try:
+            try:
+                data = {"filename": filename, "subfolder": subfolder, "type": type_to_try}
+                url_values = urllib.parse.urlencode(data)
+                full_url = f"{COMFY_SERVER}/view?{url_values}"
+                print(f"시도 중: {full_url}")
+                
+                with urllib.request.urlopen(full_url) as response:
+                    image_data = response.read()
+                    print(f"이미지 로드 성공 ({type_to_try}): {len(image_data)} 바이트")
+                    return Response(content=image_data, media_type="image/png")
+            except urllib.error.HTTPError as e:
+                print(f"{type_to_try} 폴더에서 이미지를 찾지 못했습니다: {e.code} {e.reason}")
+                continue
+                
+        # 모든 시도 실패
+        raise HTTPException(status_code=404, detail="이미지를 찾을 수 없습니다")
+                
     except Exception as e:
-        print(f"이미지 호출 오류: {str(e)}")
+        print(f"이미지 호출 상세 오류: {str(e)}")
+        
+        # 사용 가능한 파일 목록 확인 시도
+        try:
+            # 최근 프롬프트 ID 가져오기
+            with urllib.request.urlopen(f"{COMFY_SERVER}/history") as response:
+                history_data = json.loads(response.read())
+                prompt_ids = list(history_data.keys())
+                
+                if prompt_ids:
+                    latest_prompt_id = prompt_ids[-1]
+                    print(f"최근 프롬프트 ID: {latest_prompt_id}")
+                    
+                    # 최근 이미지 정보 가져오기
+                    prompt_info = history_data[latest_prompt_id]
+                    if "outputs" in prompt_info:
+                        for node_id, output in prompt_info["outputs"].items():
+                            if "images" in output:
+                                print(f"노드 {node_id}의 이미지들:")
+                                for img in output["images"]:
+                                    print(f"  - {img['filename']} (타입: {img['type']}, 폴더: {img['subfolder']})")
+        except Exception as hist_error:
+            print(f"히스토리 정보 확인 중 오류: {str(hist_error)}")
+            
         raise HTTPException(status_code=500, detail=f"이미지 호출 오류: {str(e)}")
 
 #히스토리 데이터 가져오기
 @app.get('/api/history/{prompt_id}')
 async def get_prompt_history(prompt_id: str):
     try:
-        
         history_data = fetch_history(prompt_id)
-        print("히스토리 데이터", history_data)
+        
+        # 히스토리 데이터에서 이미지 정보 출력
+        if prompt_id in history_data:
+            prompt_info = history_data[prompt_id]
+            if "outputs" in prompt_info:
+                print("이미지 출력 정보:")
+                for node_id, output in prompt_info["outputs"].items():
+                    if "images" in output:
+                        print(f"노드 {node_id}의 이미지들:")
+                        for img in output["images"]:
+                            print(f"  - {img['filename']} (타입: {img['type']}, 폴더: {img['subfolder']})")
+        
         return history_data
     except Exception as e:
+        print(f"히스토리 호출 오류 상세: {str(e)}")
         raise HTTPException(status_code=500, detail=f"히스토리 호출 오류: {str(e)}")
     
 
@@ -211,56 +287,56 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
         "message": "ComfyUI 서버에 연결되었습니다."
     }))
     
-    try:
-        # 클라이언트 메시지 처리
-        while True:
-            # 클라이언트로부터 메시지 수신
-            data = await websocket.receive_text()
-            request_data = json.loads(data)
+    # try:
+    #     # 클라이언트 메시지 처리
+    #     while True:
+    #         # 클라이언트로부터 메시지 수신
+    #         data = await websocket.receive_text()
+    #         request_data = json.loads(data)
             
-            # 메시지 유형에 따라 처리
-            if request_data.get("type") == "prompt":
-                # 워크플로우 로드
-                workflow = load_workflow(request_data.get("workflow_name", "default"))
+    #         # 메시지 유형에 따라 처리
+    #         if request_data.get("type") == "prompt":
+    #             # 워크플로우 로드
+    #             workflow = load_workflow(request_data.get("workflow_name", "default"))
                 
-                # 프롬프트 텍스트 적용
-                workflow["12"]["inputs"]["text"] = request_data.get("prompt_text", "")
+    #             # 프롬프트 텍스트 적용
+    #             workflow["4"]["inputs"]["text"] = request_data.get("prompt_text", "")
                 
-                # 시드 설정
-                seed = request_data.get("seed")
-                if seed is not None:
-                    workflow["37"]["inputs"]["noise_seed"] = seed
-                else:
-                    # 랜덤 시드 생성
-                    workflow["37"]["inputs"]["noise_seed"] = random.randint(1, 9999999999)
+    #             # 시드 설정
+    #             seed = request_data.get("seed")
+    #             if seed is not None:
+    #                 workflow["11"]["inputs"]["seed"] = seed
+    #             else:
+    #                 # 랜덤 시드 생성
+    #                 workflow["11"]["inputs"]["seed"] = random.randint(1, 9999999999)
                 
-                # ComfyUI에 요청 보내기
-                result = queue_prompt(workflow, client_id)
-                prompt_id = result["prompt_id"]
+    #             # ComfyUI에 요청 보내기
+    #             result = queue_prompt(workflow, client_id)
+    #             prompt_id = result["prompt_id"]
                 
-                # 프롬프트 ID 전송
-                await manager.send_message(client_id, json.dumps({
-                    "type": "prompt_queued",
-                    "prompt_id": prompt_id
-                }))
+    #             # 프롬프트 ID 전송
+    #             await manager.send_message(client_id, json.dumps({
+    #                 "type": "prompt_queued",
+    #                 "prompt_id": prompt_id
+    #             }))
                 
-                # ComfyUI 웹소켓에서 상태 모니터링
-                asyncio.create_task(monitor_prompt_progress(client_id, prompt_id))
+    #             # ComfyUI 웹소켓에서 상태 모니터링
+    #             asyncio.create_task(monitor_prompt_progress(client_id, prompt_id))
                 
-    except WebSocketDisconnect:
-        # 연결 해제
-        manager.disconnect(client_id)
-    except Exception as e:
-        # 오류 처리
-        print(f"웹소켓 오류: {str(e)}")
-        try:
-            await manager.send_message(client_id, json.dumps({
-                "type": "error",
-                "message": str(e)
-            }))
-        except:
-            pass
-        manager.disconnect(client_id)
+    # except WebSocketDisconnect:
+    #     # 연결 해제
+    #     manager.disconnect(client_id)
+    # except Exception as e:
+    #     # 오류 처리
+    #     print(f"웹소켓 오류: {str(e)}")
+    #     try:
+    #         await manager.send_message(client_id, json.dumps({
+    #             "type": "error",
+    #             "message": str(e)
+    #         }))
+    #     except:
+    #         pass
+    #     manager.disconnect(client_id)
 
 async def monitor_prompt_progress(client_id: str, prompt_id: str):
     comfy_ws = manager.get_comfy_ws(client_id)
@@ -324,20 +400,29 @@ async def monitor_prompt_progress(client_id: str, prompt_id: str):
                                         prompt_history = history[prompt_id]
                                         
                                         # 시드값 찾기
-                                        if "prompt" in prompt_history and "37" in prompt_history["prompt"]:
-                                            seed_value = prompt_history["prompt"]["37"]["inputs"]["noise_seed"]
+                                        if "prompt" in prompt_history and "11" in prompt_history["prompt"]:
+                                            seed_value = prompt_history["prompt"]["11"]["inputs"]["seed"]
                                         
-                                        # 이미지 찾기
+                                        # 이미지 찾기 - 자세한 로깅 추가
                                         if "outputs" in prompt_history:
+                                            print(f"이미지 출력 노드들: {list(prompt_history['outputs'].keys())}")
+                                            
                                             for node_id, output in prompt_history["outputs"].items():
+                                                print(f"노드 {node_id} 출력 검사 중...")
+                                                
                                                 if "images" in output:
+                                                    print(f"노드 {node_id}에서 이미지 {len(output['images'])}개 발견:")
+                                                    
                                                     for image in output["images"]:
+                                                        print(f"  - 이미지: {image['filename']} (타입: {image['type']})")
                                                         image_urls.append({
                                                             "filename": image["filename"],
                                                             "subfolder": image["subfolder"],
                                                             "type": image["type"],
                                                             "url": f"/api/image?filename={image['filename']}&subfolder={image['subfolder']}&type={image['type']}"
                                                         })
+                                                else:
+                                                    print(f"노드 {node_id}에 이미지 출력 없음")
                                     
                                     # 결과 전송
                                     await manager.send_message(client_id, json.dumps({

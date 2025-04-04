@@ -60,161 +60,161 @@
 	};
 
 	// 웹소켓 연결 설정
-	onMount(() => {
-		connectWebSocket();
-	});
+	// onMount(() => {
+	// 	connectWebSocket();
+	// });
 
-	// 컴포넌트 종료 시 웹소켓 연결 종료
-	onDestroy(() => {
-		if (socket) {
-			socket.close();
-		}
-	});
+	// // 컴포넌트 종료 시 웹소켓 연결 종료
+	// onDestroy(() => {
+	// 	if (socket) {
+	// 		socket.close();
+	// 	}
+	// });
 
-	// 웹소켓 연결 함수
-	function connectWebSocket() {
-		// 연결 상태 초기화
-		isConnected = false;
-		connectionStatus = "연결 시도 중...";
+	// // 웹소켓 연결 함수
+	// function connectWebSocket() {
+	// 	// 연결 상태 초기화
+	// 	isConnected = false;
+	// 	connectionStatus = "연결 시도 중...";
 
-		// 클라이언트 ID 생성
-		const clientId = `svelte_${Date.now()}`;
+	// 	// 클라이언트 ID 생성
+	// 	const clientId = `svelte_${Date.now()}`;
 
-		// 웹소켓 연결
-		socket = new WebSocket(`ws://localhost:8000/ws/${clientId}`);
+	// 	// 웹소켓 연결
+	// 	socket = new WebSocket(`ws://localhost:8000/ws/${clientId}`);
 
-		// 연결 이벤트 핸들러
-		socket.onopen = () => {
-			console.log("웹소켓 연결됨");
-			isConnected = true;
-			connectionStatus = "연결";
-		};
+	// 	// 연결 이벤트 핸들러
+	// 	socket.onopen = () => {
+	// 		console.log("웹소켓 연결됨");
+	// 		isConnected = true;
+	// 		connectionStatus = "연결";
+	// 	};
 
-		// 메시지 이벤트 핸들러
-		socket.onmessage = (event) => {
-			// 바이너리 데이터 (이미지 미리보기)는 현재 사용하지 않음
-			if (typeof event.data === "string") {
-				// JSON 메시지 처리
-				try {
-					const message = JSON.parse(event.data);
-					handleWebSocketMessage(message);
-				} catch (error) {
-					console.error("웹소켓 메시지 파싱 오류:", error);
-				}
-			}
-		};
+	// 	// 메시지 이벤트 핸들러
+	// 	socket.onmessage = (event) => {
+	// 		// 바이너리 데이터 (이미지 미리보기)는 현재 사용하지 않음
+	// 		if (typeof event.data === "string") {
+	// 			// JSON 메시지 처리
+	// 			try {
+	// 				const message = JSON.parse(event.data);
+	// 				handleWebSocketMessage(message);
+	// 			} catch (error) {
+	// 				console.error("웹소켓 메시지 파싱 오류:", error);
+	// 			}
+	// 		}
+	// 	};
 
-		// 연결 종료 이벤트 핸들러
-		socket.onclose = (event) => {
-			isConnected = false;
-			connectionStatus = `종료: ${event.reason || "알 수 없는 이유"}`;
-			console.log("웹소켓 연결 종료:", event);
+	// 	// 연결 종료 이벤트 핸들러
+	// 	socket.onclose = (event) => {
+	// 		isConnected = false;
+	// 		connectionStatus = `종료: ${event.reason || "알 수 없는 이유"}`;
+	// 		console.log("웹소켓 연결 종료:", event);
 
-			// 3초 후 재연결 시도
-			setTimeout(connectWebSocket, 3000);
-		};
+	// 		// 3초 후 재연결 시도
+	// 		setTimeout(connectWebSocket, 3000);
+	// 	};
 
-		// 오류 이벤트 핸들러
-		socket.onerror = (error) => {
-			isConnected = false;
-			connectionStatus = "오류";
-			console.error("웹소켓 오류:", error);
-		};
-	}
+	// 	// 오류 이벤트 핸들러
+	// 	socket.onerror = (error) => {
+	// 		isConnected = false;
+	// 		connectionStatus = "오류";
+	// 		console.error("웹소켓 오류:", error);
+	// 	};
+	// }
 
-	// 웹소켓 메시지 처리 함수
-	function handleWebSocketMessage(message: any) {
-		console.log("웹소켓 메시지 수신:", message);
+	// // 웹소켓 메시지 처리 함수
+	// function handleWebSocketMessage(message: any) {
+	// 	console.log("웹소켓 메시지 수신:", message);
 
-		switch (message.type) {
-			case "connection_status":
-				isConnected = message.status === "connected";
-				connectionStatus = message.message;
-				break;
+	// 	switch (message.type) {
+	// 		case "connection_status":
+	// 			isConnected = message.status === "connected";
+	// 			connectionStatus = message.message;
+	// 			break;
 
-			case "connection_error":
-				isConnected = false;
-				connectionStatus = message.message;
-				errorMessage = message.message;
-				break;
+	// 		case "connection_error":
+	// 			isConnected = false;
+	// 			connectionStatus = message.message;
+	// 			errorMessage = message.message;
+	// 			break;
 
-			case "prompt_queued":
-				currentPromptId = message.prompt_id;
-				processingStage = "프롬프트 큐에 추가됨";
-				break;
+	// 		case "prompt_queued":
+	// 			currentPromptId = message.prompt_id;
+	// 			processingStage = "프롬프트 큐에 추가됨";
+	// 			break;
 
-			case "progress":
-				// 진행 상황 업데이트
-				currentNode = message.node || "";
-				progressValue = message.progress || 0;
+	// 		case "progress":
+	// 			// 진행 상황 업데이트
+	// 			currentNode = message.node || "";
+	// 			progressValue = message.progress || 0;
 
-				// 노드 이름에 따라 진행 단계 표시
-				if (currentNode.includes("Check")) {
-					processingStage = "모델 로드 중...";
-				} else if (currentNode.includes("CLIP")) {
-					processingStage = "텍스트 분석 중...";
-				} else if (
-					currentNode.includes("KSampler") ||
-					currentNode.includes("Sampler")
-				) {
-					processingStage = `이미지 생성 중... ${progressValue}%`;
-				} else if (currentNode.includes("VAE")) {
-					processingStage = "이미지 디코딩 중...";
-				} else if (currentNode.includes("SaveImage")) {
-					processingStage = "이미지 저장 중...";
-				} else {
-					processingStage = `${currentNode} 처리 중...`;
-				}
-				break;
+	// 			// 노드 이름에 따라 진행 단계 표시
+	// 			if (currentNode.includes("Check")) {
+	// 				processingStage = "모델 로드 중...";
+	// 			} else if (currentNode.includes("CLIP")) {
+	// 				processingStage = "텍스트 분석 중...";
+	// 			} else if (
+	// 				currentNode.includes("KSampler") ||
+	// 				currentNode.includes("Sampler")
+	// 			) {
+	// 				processingStage = `이미지 생성 중... ${progressValue}%`;
+	// 			} else if (currentNode.includes("VAE")) {
+	// 				processingStage = "이미지 디코딩 중...";
+	// 			} else if (currentNode.includes("SaveImage")) {
+	// 				processingStage = "이미지 저장 중...";
+	// 			} else {
+	// 				processingStage = `${currentNode} 처리 중...`;
+	// 			}
+	// 			break;
 
-			case "execution_complete":
-				// 실행 완료 처리
-				progressValue = 100;
-				processingStage = "처리 완료, 결과를 불러오는 중...";
-				break;
+	// 		case "execution_complete":
+	// 			// 실행 완료 처리
+	// 			progressValue = 100;
+	// 			processingStage = "처리 완료, 결과를 불러오는 중...";
+	// 			break;
 
-			case "result":
-				// 최종 결과 처리
-				seedValue = message.seed;
+	// 		case "result":
+	// 			// 최종 결과 처리
+	// 			seedValue = message.seed;
 
-				if (message.images && message.images.length > 0) {
-					const outputImages = message.images.filter(
-						(img: any) => img.type === "output",
-					);
-					if (outputImages.length > 0) {
-						// output 타입 이미지 사용
-						const imageUrl = outputImages[0].url;
-						generatedImage = `http://localhost:8000${imageUrl}`;
-					} else {
-						// output 타입이 없으면 첫 번째 이미지 사용
-						const imageUrl = message.images[0].url;
-						generatedImage = `http://localhost:8000${imageUrl}`;
-					}
-				}
+	// 			if (message.images && message.images.length > 0) {
+	// 				const outputImages = message.images.filter(
+	// 					(img: any) => img.type === "output",
+	// 				);
+	// 				if (outputImages.length > 0) {
+	// 					// output 타입 이미지 사용
+	// 					const imageUrl = outputImages[0].url;
+	// 					generatedImage = `http://localhost:8000${imageUrl}`;
+	// 				} else {
+	// 					// output 타입이 없으면 첫 번째 이미지 사용
+	// 					const imageUrl = message.images[0].url;
+	// 					generatedImage = `http://localhost:8000${imageUrl}`;
+	// 				}
+	// 			}
 
-				console.log("최종 이미지", generatedImage);
+	// 			console.log("최종 이미지", generatedImage);
 
-				// 로딩 상태 종료
-				isLoading = false;
-				processingStage = "";
-				break;
+	// 			// 로딩 상태 종료
+	// 			isLoading = false;
+	// 			processingStage = "";
+	// 			break;
 
-			case "error":
-				// 오류 처리
-				errorMessage = message.message;
-				isLoading = false;
-				processingStage = "";
-				break;
-		}
-	}
+	// 		case "error":
+	// 			// 오류 처리
+	// 			errorMessage = message.message;
+	// 			isLoading = false;
+	// 			processingStage = "";
+	// 			break;
+	// 	}
+	// }
 
-	// 서버 재연결 함수
-	function reconnectServer() {
-		if (socket) {
-			socket.close();
-		}
-		connectWebSocket();
-	}
+	// // 서버 재연결 함수
+	// function reconnectServer() {
+	// 	if (socket) {
+	// 		socket.close();
+	// 	}
+	// 	connectWebSocket();
+	// }
 
 	// 프롬프트 생성
 	const generatePrompt = (): string => {
@@ -223,48 +223,48 @@
 		a ${selectedAge} ${selectedGender} character in ${selectedTheme} setting,`;
 	};
 
-	// 웹소켓을 통한 이미지 생성 요청
-	function generateImageViaWebSocket() {
-		if (!socket || socket.readyState !== WebSocket.OPEN) {
-			errorMessage =
-				"서버에 연결되어 있지 않습니다. 다시 연결을 시도해 주세요.";
-			return;
-		}
+	// // 웹소켓을 통한 이미지 생성 요청
+	// function generateImageViaWebSocket() {
+	// 	if (!socket || socket.readyState !== WebSocket.OPEN) {
+	// 		errorMessage =
+	// 			"서버에 연결되어 있지 않습니다. 다시 연결을 시도해 주세요.";
+	// 		return;
+	// 	}
 
-		// 로딩 상태 시작
-		isLoading = true;
-		generatedImage = null;
-		errorMessage = null;
-		progressValue = 0;
-		currentNode = "";
-		processingStage = "준비 중...";
+	// 	// 로딩 상태 시작
+	// 	isLoading = true;
+	// 	generatedImage = null;
+	// 	errorMessage = null;
+	// 	progressValue = 0;
+	// 	currentNode = "";
+	// 	processingStage = "준비 중...";
 
-		// 프롬프트 생성 + 랜덤
-		let positivePrompt = generatePrompt();
-		if (randomPrompt && randomPrompt.trim() !== "") {
-			positivePrompt += ` ${randomPrompt.trim()}`;
-		}
+	// 	// 프롬프트 생성 + 랜덤
+	// 	let positivePrompt = generatePrompt();
+	// 	if (randomPrompt && randomPrompt.trim() !== "") {
+	// 		positivePrompt += ` ${randomPrompt.trim()}`;
+	// 	}
 
-		// 메시지 데이터 준비
-		const promptData = {
-			type: "prompt",
-			prompt_text: positivePrompt,
-			workflow_name: "default",
-			seed: null, // 랜덤 시드 사용
-		};
+	// 	// 메시지 데이터 준비
+	// 	const promptData = {
+	// 		type: "prompt",
+	// 		prompt_text: positivePrompt,
+	// 		workflow_name: "bagic-flux-schnell-gguf",
+	// 		seed: null, // 랜덤 시드 사용
+	// 	};
 
-		// 메시지 전송
-		socket.send(JSON.stringify(promptData));
-		console.log("웹소켓을 통해 프롬프트 전송:", promptData);
-	}
+	// 	// 메시지 전송
+	// 	socket.send(JSON.stringify(promptData));
+	// 	console.log("웹소켓을 통해 프롬프트 전송:", promptData);
+	// }
 
 	// 기존 HTTP API를 통한 이미지 생성 요청
 	async function generateImage() {
-		// 웹소켓이 연결된 경우 웹소켓을 통해 요청
-		if (isConnected && socket && socket.readyState === WebSocket.OPEN) {
-			generateImageViaWebSocket();
-			return;
-		}
+		// // 웹소켓이 연결된 경우 웹소켓을 통해 요청
+		// if (isConnected && socket && socket.readyState === WebSocket.OPEN) {
+		// 	generateImageViaWebSocket();
+		// 	return;
+		// }
 
 		// 웹소켓 연결이 없는 경우 기존 방식으로 요청 진행
 		isLoading = true;
@@ -415,14 +415,14 @@
 					<WifiOff size={16} />
 				{/if}
 				<span>{connectionStatus}</span>
-				{#if !isConnected}
+				<!-- {#if !isConnected}
 					<button
 						on:click={reconnectServer}
 						class="px-2 py-0.5 ml-2 text-xs text-white bg-blue-500 rounded hover:bg-blue-600"
 					>
 						연결
 					</button>
-				{/if}
+				{/if} -->
 			</div>
 		</div>
 		<!-- 스텝 인디케이터 -->
@@ -654,14 +654,14 @@
 				{:else if errorMessage}
 					<div class="w-full p-4 text-red-700 rounded-lg bg-red-50">
 						<p>오류 발생: {errorMessage}</p>
-						{#if !isConnected}
+						<!-- {#if !isConnected}
 							<button
 								on:click={reconnectServer}
 								class="px-4 py-2 mt-3 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
 							>
 								서버 연결 시도
 							</button>
-						{/if}
+						{/if} -->
 					</div>
 				{:else if generatedImage}
 					<div class="text-center">
