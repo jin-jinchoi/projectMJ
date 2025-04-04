@@ -1,13 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from "svelte";
-	import {
-		UserRound,
-		ArrowRight,
-		ArrowLeft,
-		Check,
-		Wifi,
-		WifiOff,
-	} from "lucide-svelte";
+	import { UserRound, ArrowRight, ArrowLeft, Check } from "lucide-svelte";
 	import { promptConfig } from "../config";
 
 	const { promptOptions, defaultSelections } = promptConfig;
@@ -23,17 +15,6 @@
 	let errorMessage: string | null = null;
 	let currentStep = 0;
 	let seedValue: number | null = null;
-
-	// 웹소켓 관련
-	let socket: WebSocket | null = null;
-	let isConnected = false;
-	let connectionStatus = "연결 대기 중";
-	let progressValue = 0;
-	let currentNode = "";
-	let currentPromptId: string | null = null;
-
-	// 이미지 처리 중 표시할 진행 상태
-	let processingStage = "";
 
 	const steps = [{ name: "선택" }, { name: "입력" }, { name: "확인" }];
 
@@ -59,163 +40,6 @@
 		}
 	};
 
-	// 웹소켓 연결 설정
-	// onMount(() => {
-	// 	connectWebSocket();
-	// });
-
-	// // 컴포넌트 종료 시 웹소켓 연결 종료
-	// onDestroy(() => {
-	// 	if (socket) {
-	// 		socket.close();
-	// 	}
-	// });
-
-	// // 웹소켓 연결 함수
-	// function connectWebSocket() {
-	// 	// 연결 상태 초기화
-	// 	isConnected = false;
-	// 	connectionStatus = "연결 시도 중...";
-
-	// 	// 클라이언트 ID 생성
-	// 	const clientId = `svelte_${Date.now()}`;
-
-	// 	// 웹소켓 연결
-	// 	socket = new WebSocket(`ws://localhost:8000/ws/${clientId}`);
-
-	// 	// 연결 이벤트 핸들러
-	// 	socket.onopen = () => {
-	// 		console.log("웹소켓 연결됨");
-	// 		isConnected = true;
-	// 		connectionStatus = "연결";
-	// 	};
-
-	// 	// 메시지 이벤트 핸들러
-	// 	socket.onmessage = (event) => {
-	// 		// 바이너리 데이터 (이미지 미리보기)는 현재 사용하지 않음
-	// 		if (typeof event.data === "string") {
-	// 			// JSON 메시지 처리
-	// 			try {
-	// 				const message = JSON.parse(event.data);
-	// 				handleWebSocketMessage(message);
-	// 			} catch (error) {
-	// 				console.error("웹소켓 메시지 파싱 오류:", error);
-	// 			}
-	// 		}
-	// 	};
-
-	// 	// 연결 종료 이벤트 핸들러
-	// 	socket.onclose = (event) => {
-	// 		isConnected = false;
-	// 		connectionStatus = `종료: ${event.reason || "알 수 없는 이유"}`;
-	// 		console.log("웹소켓 연결 종료:", event);
-
-	// 		// 3초 후 재연결 시도
-	// 		setTimeout(connectWebSocket, 3000);
-	// 	};
-
-	// 	// 오류 이벤트 핸들러
-	// 	socket.onerror = (error) => {
-	// 		isConnected = false;
-	// 		connectionStatus = "오류";
-	// 		console.error("웹소켓 오류:", error);
-	// 	};
-	// }
-
-	// // 웹소켓 메시지 처리 함수
-	// function handleWebSocketMessage(message: any) {
-	// 	console.log("웹소켓 메시지 수신:", message);
-
-	// 	switch (message.type) {
-	// 		case "connection_status":
-	// 			isConnected = message.status === "connected";
-	// 			connectionStatus = message.message;
-	// 			break;
-
-	// 		case "connection_error":
-	// 			isConnected = false;
-	// 			connectionStatus = message.message;
-	// 			errorMessage = message.message;
-	// 			break;
-
-	// 		case "prompt_queued":
-	// 			currentPromptId = message.prompt_id;
-	// 			processingStage = "프롬프트 큐에 추가됨";
-	// 			break;
-
-	// 		case "progress":
-	// 			// 진행 상황 업데이트
-	// 			currentNode = message.node || "";
-	// 			progressValue = message.progress || 0;
-
-	// 			// 노드 이름에 따라 진행 단계 표시
-	// 			if (currentNode.includes("Check")) {
-	// 				processingStage = "모델 로드 중...";
-	// 			} else if (currentNode.includes("CLIP")) {
-	// 				processingStage = "텍스트 분석 중...";
-	// 			} else if (
-	// 				currentNode.includes("KSampler") ||
-	// 				currentNode.includes("Sampler")
-	// 			) {
-	// 				processingStage = `이미지 생성 중... ${progressValue}%`;
-	// 			} else if (currentNode.includes("VAE")) {
-	// 				processingStage = "이미지 디코딩 중...";
-	// 			} else if (currentNode.includes("SaveImage")) {
-	// 				processingStage = "이미지 저장 중...";
-	// 			} else {
-	// 				processingStage = `${currentNode} 처리 중...`;
-	// 			}
-	// 			break;
-
-	// 		case "execution_complete":
-	// 			// 실행 완료 처리
-	// 			progressValue = 100;
-	// 			processingStage = "처리 완료, 결과를 불러오는 중...";
-	// 			break;
-
-	// 		case "result":
-	// 			// 최종 결과 처리
-	// 			seedValue = message.seed;
-
-	// 			if (message.images && message.images.length > 0) {
-	// 				const outputImages = message.images.filter(
-	// 					(img: any) => img.type === "output",
-	// 				);
-	// 				if (outputImages.length > 0) {
-	// 					// output 타입 이미지 사용
-	// 					const imageUrl = outputImages[0].url;
-	// 					generatedImage = `http://localhost:8000${imageUrl}`;
-	// 				} else {
-	// 					// output 타입이 없으면 첫 번째 이미지 사용
-	// 					const imageUrl = message.images[0].url;
-	// 					generatedImage = `http://localhost:8000${imageUrl}`;
-	// 				}
-	// 			}
-
-	// 			console.log("최종 이미지", generatedImage);
-
-	// 			// 로딩 상태 종료
-	// 			isLoading = false;
-	// 			processingStage = "";
-	// 			break;
-
-	// 		case "error":
-	// 			// 오류 처리
-	// 			errorMessage = message.message;
-	// 			isLoading = false;
-	// 			processingStage = "";
-	// 			break;
-	// 	}
-	// }
-
-	// // 서버 재연결 함수
-	// function reconnectServer() {
-	// 	if (socket) {
-	// 		socket.close();
-	// 	}
-	// 	connectWebSocket();
-	// }
-
 	// 프롬프트 생성
 	const generatePrompt = (): string => {
 		return `(masterpiece, best quality, high detail, anime, gray background, background with nothing, 
@@ -223,49 +47,8 @@
 		a ${selectedAge} ${selectedGender} character in ${selectedTheme} setting,`;
 	};
 
-	// // 웹소켓을 통한 이미지 생성 요청
-	// function generateImageViaWebSocket() {
-	// 	if (!socket || socket.readyState !== WebSocket.OPEN) {
-	// 		errorMessage =
-	// 			"서버에 연결되어 있지 않습니다. 다시 연결을 시도해 주세요.";
-	// 		return;
-	// 	}
-
-	// 	// 로딩 상태 시작
-	// 	isLoading = true;
-	// 	generatedImage = null;
-	// 	errorMessage = null;
-	// 	progressValue = 0;
-	// 	currentNode = "";
-	// 	processingStage = "준비 중...";
-
-	// 	// 프롬프트 생성 + 랜덤
-	// 	let positivePrompt = generatePrompt();
-	// 	if (randomPrompt && randomPrompt.trim() !== "") {
-	// 		positivePrompt += ` ${randomPrompt.trim()}`;
-	// 	}
-
-	// 	// 메시지 데이터 준비
-	// 	const promptData = {
-	// 		type: "prompt",
-	// 		prompt_text: positivePrompt,
-	// 		workflow_name: "bagic-flux-schnell-gguf",
-	// 		seed: null, // 랜덤 시드 사용
-	// 	};
-
-	// 	// 메시지 전송
-	// 	socket.send(JSON.stringify(promptData));
-	// 	console.log("웹소켓을 통해 프롬프트 전송:", promptData);
-	// }
-
 	// 기존 HTTP API를 통한 이미지 생성 요청
 	async function generateImage() {
-		// // 웹소켓이 연결된 경우 웹소켓을 통해 요청
-		// if (isConnected && socket && socket.readyState === WebSocket.OPEN) {
-		// 	generateImageViaWebSocket();
-		// 	return;
-		// }
-
 		// 웹소켓 연결이 없는 경우 기존 방식으로 요청 진행
 		isLoading = true;
 		generatedImage = null;
@@ -273,6 +56,7 @@
 
 		try {
 			let positivePrompt = generatePrompt();
+			let seedNumber = null;
 
 			if (randomPrompt && randomPrompt.trim() !== "") {
 				positivePrompt += ` ${randomPrompt.trim()}`;
@@ -282,8 +66,9 @@
 
 			const promptData = {
 				prompt_text: positivePrompt,
-				workflow_name: "default",
+				workflow_name: "0404test",
 				client_id: `svelte_${Date.now()}`,
+				seed: seedNumber,
 			};
 
 			console.log(positivePrompt);
@@ -320,7 +105,6 @@
 		}
 	}
 
-	// 기존 이미지 가져오기 함수 (웹소켓 연결이 실패했을 때 폴백용)
 	async function fetchGeneratedImage(promptId: string) {
 		try {
 			console.log("히스토리 데이터 확인 시작, promptId:", promptId);
@@ -345,7 +129,6 @@
 			) {
 				const outputs = historyData[promptId].outputs;
 
-				// 출력 노드들을 검사합니다 (19가 SaveImage 노드입니다)
 				for (const nodeId in outputs) {
 					const nodeOutput = outputs[nodeId];
 					if (nodeOutput && nodeOutput.images && nodeOutput.images.length > 0) {
@@ -358,14 +141,15 @@
 
 						generatedImage = imageUrl;
 
-						// 시드 값 찾기 (RandomNoise 노드는 37번입니다)
+						// seedValue = historyData[promptId].prompt["11"];
+						// console.log(seedValue);
+
 						try {
 							if (
 								historyData[promptId].prompt &&
-								historyData[promptId].prompt["37"]
+								historyData[promptId].prompt["11"]
 							) {
-								seedValue =
-									historyData[promptId].prompt["37"].inputs.noise_seed;
+								seedValue = historyData[promptId].prompt["11"].inputs.seed;
 								console.log("시드 값:", seedValue);
 							}
 						} catch (error) {
@@ -379,7 +163,6 @@
 				}
 			}
 
-			// 이미지를 찾지 못한 경우 1초 후 다시 시도합니다 (최대 30초)
 			console.warn("이미지를 찾지 못했습니다, 다시 시도합니다...");
 			if (isLoading) {
 				setTimeout(() => fetchGeneratedImage(promptId), 1000);
@@ -403,28 +186,7 @@
 <div class="grid w-full grid-cols-2 gap-8 p-4">
 	<!-- 왼쪽 컬럼: 단계별 입력 폼 -->
 	<div class="p-6 bg-white shadow-lg rounded-xl">
-		<div class="flex items-center justify-end mb-2">
-			<div
-				class="flex items-center gap-2 px-3 py-1 text-sm rounded-full {isConnected
-					? 'bg-green-100 text-green-700'
-					: 'bg-red-100 text-red-700'}"
-			>
-				{#if isConnected}
-					<Wifi size={16} />
-				{:else}
-					<WifiOff size={16} />
-				{/if}
-				<span>{connectionStatus}</span>
-				<!-- {#if !isConnected}
-					<button
-						on:click={reconnectServer}
-						class="px-2 py-0.5 ml-2 text-xs text-white bg-blue-500 rounded hover:bg-blue-600"
-					>
-						연결
-					</button>
-				{/if} -->
-			</div>
-		</div>
+		<div class="flex items-center justify-end mb-2"></div>
 		<!-- 스텝 인디케이터 -->
 		<div class="mb-6">
 			<div class="flex justify-between mb-4">
@@ -616,32 +378,9 @@
 			<div class="flex flex-col items-center justify-center w-full h-full">
 				{#if isLoading}
 					<div class="w-full text-center">
-						<p class="mb-3 text-gray-700">
-							{processingStage || "캐릭터를 생성하는 중입니다..."}
-						</p>
-
-						<!-- 진행 표시줄 -->
-						{#if progressValue > 0}
-							<div class="w-full bg-gray-200 rounded-full h-2.5 mb-4">
-								<div
-									class="bg-blue-600 h-2.5 rounded-full"
-									style="width: {progressValue}%"
-								></div>
-							</div>
-						{:else}
-							<div
-								class="w-full h-2 mb-4 overflow-hidden bg-gray-200 rounded-full"
-							>
-								<div
-									class="h-full bg-blue-500 rounded-full animate-progress"
-								></div>
-							</div>
-						{/if}
-
-						<!-- 현재 작업 노드 표시 -->
-						{#if currentNode}
-							<p class="text-xs text-gray-500">현재 처리 중: {currentNode}</p>
-						{/if}
+						<div class="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+							<div class="bg-blue-600 h-2.5 rounded-full"></div>
+						</div>
 					</div>
 				{:else if !generatedImage && !errorMessage}
 					<div
@@ -688,25 +427,3 @@
 		</div>
 	</div>
 </div>
-
-<style>
-	/* 프로그레스 바 애니메이션 */
-	@keyframes progress {
-		0% {
-			width: 0%;
-			margin-left: 0%;
-		}
-		50% {
-			width: 30%;
-			margin-left: 70%;
-		}
-		100% {
-			width: 0%;
-			margin-left: 100%;
-		}
-	}
-
-	.animate-progress {
-		animation: progress 1.5s ease-in-out infinite;
-	}
-</style>
